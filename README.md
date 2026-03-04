@@ -1,4 +1,4 @@
-# 🖱 Remote Mouse
+# Remote Control
 
 Use your Android phone as a wireless trackpad and keyboard for your Mac via local WiFi network.
 
@@ -19,7 +19,7 @@ Use your Android phone as a wireless trackpad and keyboard for your Mac via loca
 ## Setup
 
 ```bash
-git clone https://github.com/elmooe/remote-control-from-phone.git
+git clone https://github.com/elmooe/remote-control.git
 cd remote-control-from-phone
 ./setup.sh
 ```
