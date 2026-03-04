@@ -2,6 +2,14 @@
 
 Use your Android phone as a wireless trackpad and keyboard for your Mac via local WiFi network.
 
+## Screenshots
+
+<p align="center">
+  <img src="assets/trackpad-view.jpg" alt="Trackpad View" width="300">
+  &nbsp;&nbsp;
+  <img src="assets/keyboard-view.jpg" alt="Keyboard View" width="300">
+</p>
+
 ## Features
 
 - **Trackpad** — move the cursor with single-finger swipe, scroll with two fingers
