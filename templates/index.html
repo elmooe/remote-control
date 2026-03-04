@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Remote Control">
+  <meta name="theme-color" content="#161b22">
+  <link rel="manifest" href="/static/manifest.json">
+  <link rel="icon" href="/static/icon.png" type="image/png">
+  <link rel="apple-touch-icon" href="/static/icon.png">
+  <title>Remote Control</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="h-dvh flex flex-col overflow-hidden select-none bg-[#0d1117] text-[#e6edf3]">
+
+<header class="flex justify-between items-center px-4 py-2.5 bg-[#161b22] border-b border-[#21262d] shrink-0">
+  <span class="text-sm font-bold">Remote Control</span>
+  <div class="flex items-center gap-3">
+    <div class="flex items-center gap-1.5 text-xs text-[#8b949e]">
+      <div id="dot" class="w-2 h-2 rounded-full bg-red-500 transition-colors duration-300"></div>
+      <span id="status-text">Connecting…</span>
+    </div>
+    <button id="settings-btn" class="text-[#8b949e] hover:text-[#e6edf3] transition-colors p-1" aria-label="Settings">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>
+    </button>
+  </div>
+</header>
+
+<!-- Settings popup -->
+<div id="settings-popup" class="hidden absolute top-12 right-3 z-50 bg-[#161b22] border border-[#30363d] rounded-xl shadow-2xl p-4 w-64 flex-col gap-4">
+  <p class="text-xs font-semibold text-[#8b949e] uppercase tracking-wider">Settings</p>
+  <div class="flex flex-col gap-1.5">
+    <div class="flex justify-between text-xs text-[#6e7681]">
+      <span>Cursor Speed</span>
+      <span id="speed-val">2.5</span>
+    </div>
+    <input type="range" id="speed" min="0.5" max="6" step="0.1" value="2.5" class="w-full accent-blue-400 cursor-pointer">
+  </div>
+  <div class="flex flex-col gap-1.5">
+    <div class="flex justify-between text-xs text-[#6e7681]">
+      <span>Scroll Speed</span>
+      <span id="scroll-speed-val">2.0</span>
+    </div>
+    <input type="range" id="scroll-speed" min="0.5" max="8" step="0.1" value="2.0" class="w-full accent-blue-400 cursor-pointer">
+  </div>
+</div>
+
+<nav class="flex bg-[#161b22] border-b border-[#21262d] shrink-0">
+  <button class="tab-btn flex-1 py-2.5 text-center text-sm font-medium cursor-pointer border-b-2 border-[#58a6ff] text-[#58a6ff] transition-colors" data-tab="trackpad">Trackpad</button>
+  <button class="tab-btn flex-1 py-2.5 text-center text-sm font-medium cursor-pointer border-b-2 border-transparent text-[#8b949e] transition-colors" data-tab="keyboard">Keyboard</button>
+</nav>
+
+<!-- Trackpad Panel -->
+<div class="panel flex flex-col flex-1 min-h-0" id="trackpad-panel">
+
+  <div id="trackpad" class="flex-1 bg-[#0d1117] touch-none relative flex items-center justify-center">
+    <img src="/static/trackpad-icon.png" class="w-20 h-20 mx-auto mb-1.5 opacity-80" alt="tap">
+  </div>
+
+  <div class="flex gap-2 p-2 bg-[#161b22] border-t border-[#21262d] shrink-0">
+    <button id="btn-left"  class="flex-1 py-4 rounded-xl text-sm font-semibold bg-[#21262d] border border-[#58a6ff] text-[#58a6ff] active:brightness-150 transition-all">Left Click</button>
+    <button id="btn-right" class="flex-1 py-4 rounded-xl text-sm font-semibold bg-[#21262d] border border-[#f78166] text-[#f78166] active:brightness-150 transition-all">Right Click</button>
+  </div>
+
+</div>
+
+<!-- Keyboard Panel -->
+<div class="panel hidden flex-col flex-1 min-h-0 bg-[#0d1117]" id="keyboard-panel">
+
+  <!-- Off-screen capture — invisible but focusable; font-size:16px prevents iOS zoom -->
+  <textarea id="capture"
+    autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+    style="position:fixed;opacity:0;top:-200px;left:-200px;width:1px;height:1px;resize:none;border:none;outline:none;font-size:16px;"
+  ></textarea>
+
+  <!-- Tap-to-type zone -->
+  <div id="type-btn" class="flex-1 flex flex-col items-center justify-center gap-4 cursor-pointer select-none">
+    <div class="text-6xl">⌨️</div>
+    <p id="kbd-label" class="text-[#8b949e] text-sm font-medium transition-colors">Tap to open keyboard</p>
+    <p class="text-[#30363d] text-xs text-center px-8">Touch the screen to open keyboard</p>
+  </div>
+
+</div>
+
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script>
+'use strict';
+
+const socket = io();
+
+const dot        = document.getElementById('dot');
+const statusText = document.getElementById('status-text');
+
+socket.on('connect', () => {
+  dot.classList.replace('bg-red-500', 'bg-green-500');
+  statusText.textContent = 'Connected';
+});
+
+socket.on('disconnect', () => {
+  dot.classList.replace('bg-green-500', 'bg-red-500');
+  statusText.textContent = 'Disconnected';
+});
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const name = btn.dataset.tab;
+
+    document.querySelectorAll('.tab-btn').forEach(b => {
+      const isActive = b === btn;
+      b.classList.toggle('text-[#58a6ff]',  isActive);
+      b.classList.toggle('border-[#58a6ff]', isActive);
+      b.classList.toggle('text-[#8b949e]',  !isActive);
+      b.classList.toggle('border-transparent', !isActive);
+    });
+
+    document.querySelectorAll('.panel').forEach(p => {
+      p.classList.add('hidden');
+      p.classList.remove('flex');
+    });
+    const active = document.getElementById(name + '-panel');
+    active.classList.remove('hidden');
+    active.classList.add('flex');
+    if (name === 'keyboard') {
+      setTimeout(() => document.getElementById('capture').focus(), 120);
+    } else {
+      document.getElementById('capture').blur();
+    }
+  });
+});
+
+
+const settingsBtn       = document.getElementById('settings-btn');
+const settingsPopup     = document.getElementById('settings-popup');
+const speedSlider       = document.getElementById('speed');
+const scrollSpeedSlider = document.getElementById('scroll-speed');
+const speedValLabel     = document.getElementById('speed-val');
+const scrollSpeedValLabel = document.getElementById('scroll-speed-val');
+
+settingsBtn.addEventListener('click', e => {
+  e.stopPropagation();
+  const opening = settingsPopup.classList.contains('hidden');
+  settingsPopup.classList.toggle('hidden', !opening);
+  settingsPopup.classList.toggle('flex',    opening);
+});
+document.addEventListener('click', e => {
+  if (!settingsPopup.contains(e.target) && e.target !== settingsBtn) {
+    settingsPopup.classList.add('hidden');
+    settingsPopup.classList.remove('flex');
+  }
+});
+speedSlider.addEventListener('input', () => {
+  speedValLabel.textContent = parseFloat(speedSlider.value).toFixed(1);
+});
+scrollSpeedSlider.addEventListener('input', () => {
+  SCROLL_SPEED = parseFloat(scrollSpeedSlider.value);
+  scrollSpeedValLabel.textContent = SCROLL_SPEED.toFixed(1);
+});
+
+const trackpad = document.getElementById('trackpad');
+
+let prevTouches      = {};   // identifier → {x, y}
+let gestureStart     = 0;    // ms timestamp when first finger touched
+let gestureMaxFings  = 0;    // peak finger count during this gesture
+let gestureMoved     = false;
+let lastTapTime      = 0;    // for double-tap detection
+let gestureOriginX   = 0;    // raw start position for jitter-safe move detection
+let gestureOriginY   = 0;
+
+// Scroll smoothing state
+// EMA smooths raw noisy deltas; accumulator holds sub-unit remainder
+// so fractional values aren't discarded by macOS's integer scroll API.
+const SCROLL_EMA    = 1.0;  // 0=max smooth/laggy, 1=raw/instant
+let   SCROLL_SPEED  = 2.0;  // overall scroll sensitivity (updated by slider)
+let scrollVx = 0, scrollVy = 0;   // EMA-smoothed velocity
+let scrollAccX = 0, scrollAccY = 0; // sub-unit accumulator
+
+trackpad.addEventListener('touchstart', e => {
+  e.preventDefault();
+
+  if (e.targetTouches.length === 1) {
+    gestureStart    = Date.now();
+    gestureMaxFings = 1;
+    gestureMoved    = false;
+    prevTouches     = {};
+    gestureOriginX  = e.targetTouches[0].clientX;
+    gestureOriginY  = e.targetTouches[0].clientY;
+    // Reset scroll smoother so previous gesture doesn't bleed in
+    scrollVx = 0; scrollVy = 0;
+    scrollAccX = 0; scrollAccY = 0;
+  } else {
+    gestureMaxFings = Math.max(gestureMaxFings, e.targetTouches.length);
+  }
+
+  for (const t of e.targetTouches) {
+    prevTouches[t.identifier] = { x: t.clientX, y: t.clientY };
+  }
+}, { passive: false });
+
+trackpad.addEventListener('touchmove', e => {
+  e.preventDefault();
+  const speed = parseFloat(speedSlider.value);
+
+  if (e.targetTouches.length === 1) {
+    // Single finger: mouse movement
+    const t = e.targetTouches[0];
+    const p = prevTouches[t.identifier];
+    if (p) {
+      const dx = (t.clientX - p.x) * speed;
+      const dy = (t.clientY - p.y) * speed;
+      if (Math.abs(dx) + Math.abs(dy) > 0.4) {
+        socket.emit('mouse_move', { dx, dy });
+      }
+    }
+    // Only mark as moved when finger clearly left the tap origin (8px raw)
+    const rawDist = Math.abs(t.clientX - gestureOriginX) + Math.abs(t.clientY - gestureOriginY);
+    if (rawDist > 8) gestureMoved = true;
+
+  } else if (e.targetTouches.length >= 2) {
+    // Two fingers: scrolling
+    const t0 = e.targetTouches[0], t1 = e.targetTouches[1];
+    const p0 = prevTouches[t0.identifier];
+    const p1 = prevTouches[t1.identifier];
+    if (p0 && p1) {
+      const avgDx = ((t0.clientX - p0.x) + (t1.clientX - p1.x)) / 2;
+      const avgDy = ((t0.clientY - p0.y) + (t1.clientY - p1.y)) / 2;
+
+      // EMA smoothing, damps jitter without adding much lag
+      scrollVx = SCROLL_EMA * (-avgDx * SCROLL_SPEED) + (1 - SCROLL_EMA) * scrollVx;
+      scrollVy = SCROLL_EMA * (-avgDy * SCROLL_SPEED) + (1 - SCROLL_EMA) * scrollVy;
+
+      // Accumulate; only emit whole units so macOS doesn't quantize to 0
+      scrollAccX += scrollVx;
+      scrollAccY += scrollVy;
+      const ix = Math.trunc(scrollAccX);
+      const iy = Math.trunc(scrollAccY);
+      if (ix !== 0 || iy !== 0) {
+        socket.emit('mouse_scroll', { dx: ix, dy: iy });
+        scrollAccX -= ix;
+        scrollAccY -= iy;
+        gestureMoved = true;
+      } else if (Math.abs(avgDx) + Math.abs(avgDy) > 0.5) {
+        gestureMoved = true; // still counts as a move even if no tick yet
+      }
+    }
+  }
+
+  for (const t of e.targetTouches) {
+    prevTouches[t.identifier] = { x: t.clientX, y: t.clientY };
+  }
+}, { passive: false });
+
+trackpad.addEventListener('touchend', e => {
+  e.preventDefault();
+
+  const lastTouch = e.changedTouches[0];
+
+  if (e.targetTouches.length === 0) {
+    // All fingers lifted → evaluate tap
+    const dt = Date.now() - gestureStart;
+
+    if (!gestureMoved && dt < 260 && gestureMaxFings === 1) {
+      // Single-finger tap → left click or double-click
+      const now = Date.now();
+      if (now - lastTapTime < 350) {
+        // Second tap within window → double-click (first click already sent)
+        socket.emit('mouse_double_click', {});
+        lastTapTime = 0;
+      } else {
+        // First tap — fire immediately, no delay
+        socket.emit('mouse_click', { button: 'left' });
+        lastTapTime = now;
+      }
+    }
+
+    // Reset for next gesture
+    prevTouches     = {};
+    gestureMaxFings = 0;
+  } else {
+    // Some fingers still down — just remove lifted ones
+    for (const t of e.changedTouches) {
+      delete prevTouches[t.identifier];
+    }
+  }
+}, { passive: false });
+
+trackpad.addEventListener('touchcancel', e => {
+  e.preventDefault();
+  prevTouches     = {};
+  gestureMaxFings = 0;
+}, { passive: false });
+
+let btnLeftClickCount = 1;
+let btnLeftLastTap    = 0;
+document.getElementById('btn-left').addEventListener('touchstart', e => {
+  e.preventDefault();
+  const now = Date.now();
+  btnLeftClickCount = (now - btnLeftLastTap < 350) ? 2 : 1;
+  btnLeftLastTap = now;
+  socket.emit('mouse_button_down', { click_count: btnLeftClickCount });
+});
+document.getElementById('btn-left').addEventListener('touchend', e => {
+  e.preventDefault();
+  socket.emit('mouse_button_up', { click_count: btnLeftClickCount });
+});
+document.getElementById('btn-left').addEventListener('touchcancel', e => {
+  e.preventDefault();
+  socket.emit('mouse_button_up', { click_count: btnLeftClickCount });
+});
+document.getElementById('btn-right').addEventListener('touchstart', e => {
+  e.preventDefault();
+  socket.emit('mouse_click', { button: 'right' });
+});
+
+const cap      = document.getElementById('capture');
+const kbdLabel = document.getElementById('kbd-label');
+const typeBtn  = document.getElementById('type-btn');
+
+// A zero-width space sentinel keeps the field non-empty so that
+// pressing Backspace always fires an input event (even on an "empty" field).
+const SENTINEL = '\u200B';
+
+function resetCap() {
+  cap.value = SENTINEL;
+  cap.setSelectionRange(1, 1);
+}
+resetCap();
+
+cap.addEventListener('focus', () => {
+  kbdLabel.textContent = 'Keyboard active — type anything';
+  kbdLabel.classList.replace('text-[#8b949e]', 'text-[#58a6ff]');
+});
+
+cap.addEventListener('blur', () => {
+  kbdLabel.textContent = 'Tap to open keyboard';
+  kbdLabel.classList.replace('text-[#58a6ff]', 'text-[#8b949e]');
+});
+
+cap.addEventListener('input', e => {
+  const itype = e.inputType || '';
+
+  if (itype.startsWith('delete') || cap.value.length < SENTINEL.length) {
+    // Backspace / delete key
+    socket.emit('key_backspace', { count: 1 });
+  } else {
+    // Typed text — strip sentinel before sending
+    const typed = cap.value.replace(/\u200B/g, '');
+    if (typed) socket.emit('key_type', { text: typed });
+  }
+
+  resetCap();
+});
+
+typeBtn.addEventListener('click', () => cap.focus());
+
+</script>
+</body>
+</html>
