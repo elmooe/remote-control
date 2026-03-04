@@ -4,7 +4,6 @@ import ctypes
 import ctypes.util
 import logging
 import socket as sock
-import subprocess
 
 from flask import Flask, render_template, request
 from flask_socketio import SocketIO
@@ -63,6 +62,15 @@ _cg.CGEventSetIntegerValueField.argtypes = [
 
 _kCGMouseEventClickState = 1
 
+_cg.CGEventCreateKeyboardEvent.restype  = CGEventRef
+_cg.CGEventCreateKeyboardEvent.argtypes = [
+    ctypes.c_void_p, ctypes.c_uint16, ctypes.c_bool
+]
+_cg.CGEventKeyboardSetUnicodeString.restype  = None
+_cg.CGEventKeyboardSetUnicodeString.argtypes = [
+    CGEventRef, ctypes.c_ulong, ctypes.POINTER(ctypes.c_uint16)
+]
+
 def _get_pos():
     ev = _cg.CGEventCreate(None)
     pos = _cg.CGEventGetLocation(ev)
@@ -108,12 +116,22 @@ def mouse_scroll(dx, dy):
     _cg.CGEventPost(kCGHIDEventTap, ev)
     _cg.CFRelease(ev)
 
-def _osa(script: str):
-    subprocess.run(["osascript", "-e", script], capture_output=True)
+def _post_key(virtual_key: int, key_down: bool):
+    ev = _cg.CGEventCreateKeyboardEvent(None, virtual_key, key_down)
+    _cg.CGEventPost(kCGHIDEventTap, ev)
+    _cg.CFRelease(ev)
 
 def key_type(text: str):
-    escaped = text.replace("\\", "\\\\").replace('"', '\\"')
-    _osa(f'tell application "System Events" to keystroke "{escaped}"')
+    for char in text:
+        uni = (ctypes.c_uint16 * 1)(ord(char))
+        down = _cg.CGEventCreateKeyboardEvent(None, 0, True)
+        _cg.CGEventKeyboardSetUnicodeString(down, 1, uni)
+        _cg.CGEventPost(kCGHIDEventTap, down)
+        _cg.CFRelease(down)
+        up = _cg.CGEventCreateKeyboardEvent(None, 0, False)
+        _cg.CGEventKeyboardSetUnicodeString(up, 1, uni)
+        _cg.CGEventPost(kCGHIDEventTap, up)
+        _cg.CFRelease(up)
 
 @app.route("/")
 def index():
@@ -175,7 +193,8 @@ def on_key_type(data):
 def on_key_backspace(data):
     count = max(1, int(data.get("count", 1)))
     for _ in range(count):
-        _osa('tell application "System Events" to key code 51')
+        _post_key(51, True)
+        _post_key(51, False)
 
 def get_local_ip() -> str:
     s = sock.socket(sock.AF_INET, sock.SOCK_DGRAM)
