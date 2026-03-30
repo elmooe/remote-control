@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+"""macOS remote-control server — exposes mouse & keyboard over WebSocket."""
 
 import ctypes
 import ctypes.util
@@ -61,6 +62,7 @@ _cg.CGEventSetIntegerValueField.argtypes = [
 ]
 
 _kCGMouseEventClickState = 1
+_VKEY_BACKSPACE          = 51
 
 _cg.CGEventCreateKeyboardEvent.restype  = CGEventRef
 _cg.CGEventCreateKeyboardEvent.argtypes = [
@@ -71,13 +73,23 @@ _cg.CGEventKeyboardSetUnicodeString.argtypes = [
     CGEventRef, ctypes.c_ulong, ctypes.POINTER(ctypes.c_uint16)
 ]
 
-def _get_pos():
+def _get_pos() -> tuple[float, float]:
+    """Return the current cursor position as (x, y)."""
     ev = _cg.CGEventCreate(None)
     pos = _cg.CGEventGetLocation(ev)
     _cg.CFRelease(ev)
     return pos.x, pos.y
 
-def _post_click(event_down, event_up, x, y, button, click_count=1):
+def _post_mouse_event(event_type: int, button: int, click_count: int = 1) -> None:
+    """Post a single mouse event at the current cursor position."""
+    x, y = _get_pos()
+    ev = _cg.CGEventCreateMouseEvent(None, event_type, CGPoint(x, y), button)
+    _cg.CGEventSetIntegerValueField(ev, _kCGMouseEventClickState, click_count)
+    _cg.CGEventPost(kCGHIDEventTap, ev)
+    _cg.CFRelease(ev)
+
+def _post_click(event_down: int, event_up: int, x: float, y: float,
+                button: int, click_count: int = 1) -> None:
     """Post a mouse-down + mouse-up pair with the correct clickCount field."""
     for ev_type in (event_down, event_up):
         ev = _cg.CGEventCreateMouseEvent(None, ev_type, CGPoint(x, y), button)
@@ -85,43 +97,48 @@ def _post_click(event_down, event_up, x, y, button, click_count=1):
         _cg.CGEventPost(kCGHIDEventTap, ev)
         _cg.CFRelease(ev)
 
-def mouse_move_relative(dx, dy):
-    global _left_button_held
-    ev = _cg.CGEventCreate(None)
-    pos = _cg.CGEventGetLocation(ev)
-    _cg.CFRelease(ev)
-    x, y = pos.x + dx, pos.y + dy
+def mouse_move_relative(dx: float, dy: float) -> None:
+    """Move the cursor by (dx, dy) pixels; drags if left button is held."""
+    x, y = _get_pos()
+    x += dx
+    y += dy
     ev_type = kCGEventLeftMouseDragged if _left_button_held else kCGEventMouseMoved
-    mv = _cg.CGEventCreateMouseEvent(None, ev_type, CGPoint(x, y), kCGMouseButtonLeft)
-    _cg.CGEventPost(kCGHIDEventTap, mv)
-    _cg.CFRelease(mv)
+    ev = _cg.CGEventCreateMouseEvent(None, ev_type, CGPoint(x, y), kCGMouseButtonLeft)
+    _cg.CGEventPost(kCGHIDEventTap, ev)
+    _cg.CFRelease(ev)
 
-def mouse_click(button="left"):
+def mouse_click(button: str = "left") -> None:
+    """Send a single click at the current cursor position."""
     x, y = _get_pos()
     if button == "left":
-        _post_click(kCGEventLeftMouseDown, kCGEventLeftMouseUp, x, y, kCGMouseButtonLeft, 1)
+        _post_click(kCGEventLeftMouseDown, kCGEventLeftMouseUp,
+                     x, y, kCGMouseButtonLeft)
     else:
-        _post_click(kCGEventRightMouseDown, kCGEventRightMouseUp, x, y, kCGMouseButtonRight, 1)
+        _post_click(kCGEventRightMouseDown, kCGEventRightMouseUp,
+                     x, y, kCGMouseButtonRight)
 
-def mouse_double_click():
-    """Send the second half of a double-click (clickCount=2).
-    The first tap's mouse_click() already sent the clickCount=1 pair."""
+def mouse_double_click() -> None:
+    """Send the second click of a double-click (clickCount=2)."""
     x, y = _get_pos()
-    _post_click(kCGEventLeftMouseDown, kCGEventLeftMouseUp, x, y, kCGMouseButtonLeft, 2)
+    _post_click(kCGEventLeftMouseDown, kCGEventLeftMouseUp,
+                x, y, kCGMouseButtonLeft, click_count=2)
 
-def mouse_scroll(dx, dy):
+def mouse_scroll(dx: float, dy: float) -> None:
+    """Send a scroll-wheel event."""
     ev = _cg.CGEventCreateScrollWheelEvent(
-        None, kCGScrollEventUnitPixel, 2, int(dy), int(dx)
+        None, kCGScrollEventUnitPixel, 2, int(dy), int(dx),
     )
     _cg.CGEventPost(kCGHIDEventTap, ev)
     _cg.CFRelease(ev)
 
-def _post_key(virtual_key: int, key_down: bool):
+def _post_key(virtual_key: int, key_down: bool) -> None:
+    """Post a single keyboard event."""
     ev = _cg.CGEventCreateKeyboardEvent(None, virtual_key, key_down)
     _cg.CGEventPost(kCGHIDEventTap, ev)
     _cg.CFRelease(ev)
 
-def key_type(text: str):
+def key_type(text: str) -> None:
+    """Type arbitrary Unicode text one character at a time."""
     for char in text:
         uni = (ctypes.c_uint16 * 1)(ord(char))
         down = _cg.CGEventCreateKeyboardEvent(None, 0, True)
@@ -161,23 +178,15 @@ def on_double_click(_data):
 def on_mouse_button_down(data):
     global _left_button_held
     _left_button_held = True
-    x, y = _get_pos()
     click_count = int(data.get("click_count", 1))
-    ev = _cg.CGEventCreateMouseEvent(None, kCGEventLeftMouseDown, CGPoint(x, y), kCGMouseButtonLeft)
-    _cg.CGEventSetIntegerValueField(ev, _kCGMouseEventClickState, click_count)
-    _cg.CGEventPost(kCGHIDEventTap, ev)
-    _cg.CFRelease(ev)
+    _post_mouse_event(kCGEventLeftMouseDown, kCGMouseButtonLeft, click_count)
 
 @socketio.on("mouse_button_up")
 def on_mouse_button_up(data):
     global _left_button_held
     _left_button_held = False
-    x, y = _get_pos()
     click_count = int(data.get("click_count", 1))
-    ev = _cg.CGEventCreateMouseEvent(None, kCGEventLeftMouseUp, CGPoint(x, y), kCGMouseButtonLeft)
-    _cg.CGEventSetIntegerValueField(ev, _kCGMouseEventClickState, click_count)
-    _cg.CGEventPost(kCGHIDEventTap, ev)
-    _cg.CFRelease(ev)
+    _post_mouse_event(kCGEventLeftMouseUp, kCGMouseButtonLeft, click_count)
 
 @socketio.on("mouse_scroll")
 def on_scroll(data):
@@ -193,10 +202,11 @@ def on_key_type(data):
 def on_key_backspace(data):
     count = max(1, int(data.get("count", 1)))
     for _ in range(count):
-        _post_key(51, True)
-        _post_key(51, False)
+        _post_key(_VKEY_BACKSPACE, True)
+        _post_key(_VKEY_BACKSPACE, False)
 
 def get_local_ip() -> str:
+    """Return the machine's LAN IP address."""
     s = sock.socket(sock.AF_INET, sock.SOCK_DGRAM)
     try:
         s.connect(("8.8.8.8", 80))

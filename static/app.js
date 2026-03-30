@@ -1,5 +1,7 @@
 'use strict';
 
+(function () {
+
 const socket = io();
 
 const dot        = document.getElementById('dot');
@@ -66,8 +68,8 @@ speedSlider.addEventListener('input', () => {
   speedValLabel.textContent = parseFloat(speedSlider.value).toFixed(1);
 });
 scrollSpeedSlider.addEventListener('input', () => {
-  SCROLL_SPEED = parseFloat(scrollSpeedSlider.value);
-  scrollSpeedValLabel.textContent = SCROLL_SPEED.toFixed(1);
+  scrollSpeed = parseFloat(scrollSpeedSlider.value);
+  scrollSpeedValLabel.textContent = scrollSpeed.toFixed(1);
 });
 
 const trackpad = document.getElementById('trackpad');
@@ -84,7 +86,7 @@ let gestureOriginY   = 0;
 // EMA smooths raw noisy deltas; accumulator holds sub-unit remainder
 // so fractional values aren't discarded by macOS's integer scroll API.
 const SCROLL_EMA    = 1.0;  // 0=max smooth/laggy, 1=raw/instant
-let   SCROLL_SPEED  = 2.0;  // overall scroll sensitivity (updated by slider)
+let   scrollSpeed   = 2.0;  // overall scroll sensitivity (updated by slider)
 let scrollVx = 0, scrollVy = 0;   // EMA-smoothed velocity
 let scrollAccX = 0, scrollAccY = 0; // sub-unit accumulator
 
@@ -139,8 +141,8 @@ trackpad.addEventListener('touchmove', e => {
       const avgDy = ((t0.clientY - p0.y) + (t1.clientY - p1.y)) / 2;
 
       // EMA smoothing, damps jitter without adding much lag
-      scrollVx = SCROLL_EMA * (-avgDx * SCROLL_SPEED) + (1 - SCROLL_EMA) * scrollVx;
-      scrollVy = SCROLL_EMA * (-avgDy * SCROLL_SPEED) + (1 - SCROLL_EMA) * scrollVy;
+      scrollVx = SCROLL_EMA * (-avgDx * scrollSpeed) + (1 - SCROLL_EMA) * scrollVx;
+      scrollVy = SCROLL_EMA * (-avgDy * scrollSpeed) + (1 - SCROLL_EMA) * scrollVy;
 
       // Accumulate; only emit whole units so macOS doesn't quantize to 0
       scrollAccX += scrollVx;
@@ -165,8 +167,6 @@ trackpad.addEventListener('touchmove', e => {
 
 trackpad.addEventListener('touchend', e => {
   e.preventDefault();
-
-  const lastTouch = e.changedTouches[0];
 
   if (e.targetTouches.length === 0) {
     // All fingers lifted → evaluate tap
@@ -203,24 +203,28 @@ trackpad.addEventListener('touchcancel', e => {
   gestureMaxFings = 0;
 }, { passive: false });
 
+const btnLeft  = document.getElementById('btn-left');
+const btnRight = document.getElementById('btn-right');
+
 let btnLeftClickCount = 1;
 let btnLeftLastTap    = 0;
-document.getElementById('btn-left').addEventListener('touchstart', e => {
+
+btnLeft.addEventListener('touchstart', e => {
   e.preventDefault();
   const now = Date.now();
   btnLeftClickCount = (now - btnLeftLastTap < 350) ? 2 : 1;
   btnLeftLastTap = now;
   socket.emit('mouse_button_down', { click_count: btnLeftClickCount });
 });
-document.getElementById('btn-left').addEventListener('touchend', e => {
+btnLeft.addEventListener('touchend', e => {
   e.preventDefault();
   socket.emit('mouse_button_up', { click_count: btnLeftClickCount });
 });
-document.getElementById('btn-left').addEventListener('touchcancel', e => {
+btnLeft.addEventListener('touchcancel', e => {
   e.preventDefault();
   socket.emit('mouse_button_up', { click_count: btnLeftClickCount });
 });
-document.getElementById('btn-right').addEventListener('touchstart', e => {
+btnRight.addEventListener('touchstart', e => {
   e.preventDefault();
   socket.emit('mouse_click', { button: 'right' });
 });
@@ -233,11 +237,11 @@ const typeBtn  = document.getElementById('type-btn');
 // pressing Backspace always fires an input event (even on an "empty" field).
 const SENTINEL = '\u200B';
 
-function resetCap() {
+function resetCapture() {
   cap.value = SENTINEL;
   cap.setSelectionRange(1, 1);
 }
-resetCap();
+resetCapture();
 
 cap.addEventListener('focus', () => {
   kbdLabel.textContent = 'Keyboard active — type anything';
@@ -250,9 +254,9 @@ cap.addEventListener('blur', () => {
 });
 
 cap.addEventListener('input', e => {
-  const itype = e.inputType || '';
+  const inputType = e.inputType || '';
 
-  if (itype.startsWith('delete') || cap.value.length < SENTINEL.length) {
+  if (inputType.startsWith('delete') || cap.value.length < SENTINEL.length) {
     // Backspace / delete key
     socket.emit('key_backspace', { count: 1 });
   } else {
@@ -261,7 +265,9 @@ cap.addEventListener('input', e => {
     if (typed) socket.emit('key_type', { text: typed });
   }
 
-  resetCap();
+  resetCapture();
 });
 
 typeBtn.addEventListener('click', () => cap.focus());
+
+})();
