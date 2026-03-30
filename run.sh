@@ -1,5 +1,4 @@
 #!/bin/bash
-# Starts the Remote Mouse server using the local virtual environment.
-# Usage:  ./run.sh
+# Starts the Remote Control server.
 cd "$(dirname "$0")"
-venv/bin/python3 server.py
+.venv/bin/python3 server.py

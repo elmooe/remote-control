@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """macOS remote-control server — exposes mouse & keyboard over WebSocket."""
+from __future__ import annotations
 
 import ctypes
 import ctypes.util
